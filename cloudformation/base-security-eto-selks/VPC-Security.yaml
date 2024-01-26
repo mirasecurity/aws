@@ -348,7 +348,7 @@ Resources:
     DependsOn: Decryptor1Eth1
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub "${AWS::StackName}-tg-ip-1"
+      Name: !Sub "${AWS::StackName}-tg-1"
       Port: 6081
       Protocol: GENEVE
       TargetGroupAttributes:
@@ -357,9 +357,9 @@ Resources:
       VpcId: !Ref Vpc
       HealthCheckPort: 80
       HealthCheckProtocol: "TCP"
-      TargetType: ip
+      TargetType: instance
       Targets:
-        - Id: !GetAtt Decryptor1Eth0.PrimaryPrivateIpAddress
+        - Id: !Ref Decryptor1
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-tg-1"
@@ -373,6 +373,44 @@ Resources:
         TargetGroupArn: !Ref DecryptorTargetGroup
       LoadBalancerArn: !Ref Gwlb
 
+  #  EC2 Instances (Appliances acting as target for GWLB):
+  Decryptor1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref DecryptorAmiId
+      KeyName: !Ref KeyPairName
+      InstanceType: !Ref DecryptorInstanceType
+      EbsOptimized: True
+      SecurityGroupIds:
+        - !Ref ApplianceSgPlaintext
+      SubnetId: !Ref ToolSubnet1
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 120
+            VolumeType: 'gp3'
+            Encrypted: True
+            KmsKeyId: !Ref EbsKmsKey
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-decrypt-1"
+  Decryptor1Eth1:
+      Type: 'AWS::EC2::NetworkInterface'
+      Properties:
+        SubnetId: !Ref MgmtPublicSubnet1
+        Description: ManagementInterface
+        GroupSet:
+        - !Ref ApplianceSg
+        Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-DECeth1"
+  Decryptor1Eth1Attach:
+      Type: 'AWS::EC2::NetworkInterfaceAttachment'
+      Properties:
+        DeleteOnTermination: true
+        DeviceIndex: 1
+        NetworkInterfaceId: !Ref Decryptor1Eth1
+        InstanceId: !Ref Decryptor1
   Decryptor1EIP:
     Condition: CreateEIP
     Type: AWS::EC2::EIP
@@ -391,55 +429,6 @@ Resources:
     Properties:
       AllocationId: !GetAtt Decryptor1EIP.AllocationId
       NetworkInterfaceId: !Ref Decryptor1Eth1
-
-  #  EC2 Instances (Appliances acting as target for GWLB):
-  Decryptor1:
-    Type: AWS::EC2::Instance
-    Properties:
-      ImageId: !Ref DecryptorAmiId
-      KeyName: !Ref KeyPairName
-      InstanceType: !Ref DecryptorInstanceType
-      EbsOptimized: True
-      NetworkInterfaces:
-      - NetworkInterfaceId: !Ref Decryptor1Eth0
-        DeviceIndex: '0'
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeSize: 120
-            VolumeType: 'gp3'
-            Encrypted: True
-            KmsKeyId: !Ref EbsKmsKey
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-decrypt-1"
-  Decryptor1Eth0:
-      Type: 'AWS::EC2::NetworkInterface'
-      Properties:
-        SubnetId: !Ref ToolSubnet1
-        Description: Decryptor1TnllInterface
-        GroupSet:
-        - !Ref ApplianceSgPlaintext
-        Tags:
-        - Key: Name
-          Value: 'Decryptor1eth0'
-  Decryptor1Eth1:
-      Type: 'AWS::EC2::NetworkInterface'
-      Properties:
-        SubnetId: !Ref MgmtPublicSubnet1
-        Description: Decryptor1MgmtInterface
-        GroupSet:
-        - !Ref ApplianceSg
-        Tags:
-        - Key: Name
-          Value: 'Decryptor1eth1'
-  Decryptor1Eth1Attach:
-      Type: 'AWS::EC2::NetworkInterfaceAttachment'
-      Properties:
-        DeleteOnTermination: true
-        DeviceIndex: 1
-        NetworkInterfaceId: !Ref Decryptor1Eth1
-        InstanceId: !Ref Decryptor1
 
   IDSEIP:
     Condition: CreateIDSEIP
@@ -510,7 +499,7 @@ Resources:
         - !Ref ApplianceSg
         Tags:
         - Key: Name
-          Value: 'IDSeth0'
+          Value: !Sub "${AWS::StackName}-IDSeth0"
   IDSEth1:
       Condition: CreateIDS
       Type: 'AWS::EC2::NetworkInterface'
@@ -521,7 +510,7 @@ Resources:
         - !Ref ApplianceSgPlaintext
         Tags:
         - Key: Name
-          Value: 'IDSeth1'
+          Value: !Sub "${AWS::StackName}-IDSeth1"
   IDSEth1Attach:
       Condition: CreateIDS
       Type: 'AWS::EC2::NetworkInterfaceAttachment'

@@ -46,7 +46,7 @@ Navigate to the CloudFormation stack outputs tab and note the ApplianceVPCEndpoi
 
 ### Checking security appliance health
 
-The ETO will take up to 5 minutes to come online and by default the ETO starts in “wire mode”, allowing traffic through but not decrypting until a license and configuration is applied. The Load Balancer health check should provide a healthy status for the ETO, this may be tracked within the AWS EC2 Target Group named [stack-name]-tg-ip-1. The next Spoke VPC should not be created until the ETO returns a healthy status.
+The ETO will take up to 5 minutes to come online and by default the ETO starts in “wire mode”, allowing traffic through but not decrypting until a license and configuration is applied. The Load Balancer health check should provide a healthy status for the ETO, this may be tracked within the AWS EC2 Target Group named [stack-name]-tg-1. The next Spoke VPC should not be created until the ETO returns a healthy status.
 
 ### **Mira ETO set up**
 

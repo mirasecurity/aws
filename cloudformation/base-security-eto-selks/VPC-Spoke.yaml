@@ -399,6 +399,9 @@ Resources:
           sudo apt -y install squid
           echo "auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwords
           auth_param basic realm proxy
+          # Deny requests to proxy aws instance metadata
+          acl instance_metadata dst 169.254.169.254
+          http_access deny instance_metadata
           acl authenticated proxy_auth REQUIRED
           http_access allow authenticated
           http_port 3128" > /etc/squid/squid.conf
