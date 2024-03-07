@@ -96,6 +96,7 @@ Parameters:
   DecryptorAmiId:
     Type: "String"
     Default: ''
+    Description: AMI id for Decryptor, can enter AMI e.g. ami-07caea4e5649cd3e1 or Alias using SSM e.g. resolve:ssm:/aws/service/marketplace/prod-kta35rcxwwv4q/v2.2.0-2023.12.20-3987
   DecryptorInstanceType:
     Description: Select EC2 instance type for Decryptor Appliance instance.
     Default: c6in.4xlarge
@@ -103,8 +104,12 @@ Parameters:
       - c6i.xlarge
       - c6i.2xlarge
       - c6i.4xlarge
+      - c6i.8xlarge
+      - c6in.xlarge
+      - c6in.2xlarge
       - c6in.4xlarge
       - c6in.8xlarge
+      - c7i.xlarge
       - c7i.2xlarge
       - c7i.4xlarge
       - c7i.8xlarge

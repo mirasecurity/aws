@@ -2,7 +2,9 @@
 
 This repository contains AWS samples to demonstrate how to create a Mira ETO on AWS.
 
-[cloudformation/base-security-eto-selks](cloudformation/base-security-eto-selks) - contains an example of Mira ETO with a GWLB and SELKS IDS along with a Nginx and Squid Proxy server.
+[cloudformation/base-clients](cloudformation/base-clients) - contains a Nginx and Squid Proxy server with subnets setup to route to a GWLB.
+
+[cloudformation/base-security-eto-selks](cloudformation/base-security-eto-selks) - contains an example of Mira ETO with a GWLB and SELKS OpenSource IDS.
 
 For ETO on AWS product information please visit [Mira Website](https://mirasecurity.com/how-mira-works/eto-aws/)
 
