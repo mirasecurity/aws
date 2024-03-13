@@ -8,6 +8,8 @@ This repository contains AWS samples to demonstrate how to create a Mira ETO on 
 
 For ETO on AWS product information please visit [Mira Website](https://mirasecurity.com/how-mira-works/eto-aws/)
 
+For ETO AMI access visit our [AWS marketplace listing](https://aws.amazon.com/marketplace/seller-profile?id=seller-vh5fkitegcazg)
+
 For ETO administrator documentation or support please visit [Mira Support Site](https://support.mirasecurity.com)
 
 
