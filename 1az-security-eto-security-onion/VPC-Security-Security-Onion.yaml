@@ -1,0 +1,630 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - AvailabilityZone1
+          - VpcCidr
+          - ToolSubnet1Cidr
+          - MgmtPublicSubnet1Cidr
+          - CreateEIPCondition
+      - Label:
+          default: Security Groups and Keys
+        Parameters:
+          - KeyPairName
+          - EbsKmsKey
+          - AccessLocation
+      - Label:
+          default: Gateway Load Balancer Configuration
+        Parameters:
+          - ConnectionAcceptance
+          - AwsAccountToWhitelist
+      - Label:
+          default: Decryptor Appliance Configuration
+        Parameters:
+          - DecryptorInstanceType
+          - DecryptorAmiId
+      - Label:
+          default: IDS Tool Settings
+        Parameters:
+          - CreateIDSCondition
+          - IDSInstanceType
+          - IDSAmiId
+          - IDSDiskSize
+
+    ParameterLabels:
+      VpcCidr:
+        default: Network CIDR block for new VPC
+      AvailabilityZone1:
+        default: Availability Zone 1
+      MgmtPublicSubnet1Cidr:
+        default: Network CIDR for Mgmt Public Subnet 1
+      ToolSubnet1Cidr:
+        default: Network CIDR for Tool Subnet 1
+      DecryptorInstanceType:
+        default: Decryptor Appliance Instance Type
+      DecryptorAmiId:
+        default: AMI ID for Decryptor appliance
+      IDSInstanceType:
+        default: IDS Appliance Instance Type
+      IDSAmiId:
+        default: AMI ID for IDS appliance
+      IDSDiskSize:
+        default: IDS Disk Size in GB
+      KeyPairName:
+        default: SSH KeyPair required for accessing Appliance instance
+      EbsKmsKey:
+        default: KMS key for encrypting EC2 EBS volumes
+      AccessLocation:
+        default: Network CIDR to access Appliance instance
+      ConnectionAcceptance:
+        default: VPC Endpoint Service Acceptance Required Attribute
+      AwsAccountToWhitelist:
+        default: AWS Account to Whitelist for the Service
+      CreateIDSCondition:
+        default: Create IDS EC2
+      CreateEIPCondition:
+        default: Create Elastic Public IPs for Decryptor/IDS Mgmt
+
+Parameters:
+  VpcCidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 192.168.1.0/24
+    Description: CIDR block for the VPC
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/y
+  AvailabilityZone1:
+    Description: Availability Zone to use for the Subnet 1 in the VPC
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Valid Availability Zone Id
+    Default: 'us-east-1a'
+  ToolSubnet1Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 192.168.1.0/25
+    Description: CIDR block for the Tool Subnet 1 located in Availability Zone 1
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  MgmtPublicSubnet1Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 192.168.1.128/27
+    Description: CIDR block for the Mgmt Public Subnet 1 located in Mgmt Public Availability Zone 1
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  DecryptorAmiId:
+    Type: "String"
+    Default: ''
+    Description: AMI id for Decryptor, can enter AMI e.g. ami-04430e6c2896054bd or Alias using SSM e.g. resolve:ssm:/aws/service/marketplace/prod-kta35rcxwwv4q/v2.2.0-2024.03.05-4176
+  DecryptorInstanceType:
+    Description: Select EC2 instance type for Decryptor Appliance instance.
+    Default: c6in.4xlarge
+    AllowedValues:
+      - c6i.xlarge
+      - c6i.2xlarge
+      - c6i.4xlarge
+      - c6i.8xlarge
+      - c6in.xlarge
+      - c6in.2xlarge
+      - c6in.4xlarge
+      - c6in.8xlarge
+      - c7i.xlarge
+      - c7i.2xlarge
+      - c7i.4xlarge
+      - c7i.8xlarge
+    Type: String
+  IDSInstanceType:
+    Description: Select EC2 instance type for IDS Appliance instance.
+    Default: m6a.2xlarge
+    AllowedValues:
+      - t3a.xlarge
+      - t3a.2xlarge
+      - m6a.xlarge
+      - m6a.2xlarge
+      - c5n.2xlarge
+      - c5n.4xlarge
+    Type: String
+  IDSAmiId:
+    Description: AMI id for IDS, can enter AMI e.g. ami-1234567 or Alias using SSM e.g. resolve:ssm:/aws/service/marketplace/prod-wkcu5cywk7gbs/2.4.50
+    Type: String
+    Default: ''
+  IDSDiskSize:
+    Description: IDS instance disk size in GB.
+    Default: 256
+    Type: Number
+    ConstraintDescription: Should be a valid instance size in GB
+  KeyPairName:
+    Description: EC2 KeyPair required for accessing EC2 instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+  EbsKmsKey:
+    Description: Alias for KMS Key for encrypting EC2 instance
+    Type: String
+    Default: alias/aws/ebs
+    ConstraintDescription: Must be the alias name of an existing KMS Key
+  AccessLocation:
+    Description: >-
+      Enter desired Network CIDR to allow traffic to appliance. 0.0.0.0/0 to
+      access from anywhere but it is not recommended
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    MinLength: "9"
+    MaxLength: "18"
+    Default: 0.0.0.0/0
+    Type: String
+    ConstraintDescription: Must be a valid Network CIDR of the form x.x.x.x/y
+  ConnectionAcceptance:
+    Description: >-
+      Acceptance required for endpoint connection or not. Select true or
+      false to either acceptance required or acceptance not required
+      default is set to false: acceptance not required
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Type: String
+    ConstraintDescription: Must be true or false
+  AwsAccountToWhitelist:
+    Description: >-
+      Enter ARN of one or more prinicapls: IAM user, IAM roles and AWS accounts.
+      To grant permissions to all principals, specify an asterisk (*).
+      example: arn:aws:iam::112233445566:user1
+    Type: String
+    Default: "*"
+    ConstraintDescription: Must be a valid AWS ARN of one or more principals
+  CreateIDSCondition:
+    Description: >-
+      Create a IDS security EC2?
+    Type: String
+    Default: "Yes"
+    AllowedValues: ["Yes", "No"]
+    ConstraintDescription: Must be a valid option Yes or No
+  CreateEIPCondition:
+    Description: >-
+      Create a Elastic IP?
+    Type: String
+    Default: "Yes"
+    AllowedValues: ["Yes", "No"]
+    ConstraintDescription: Must be a valid option Yes or No
+
+Conditions:
+  CreateEIP: !Equals
+    - !Ref CreateEIPCondition
+    - "Yes"
+  CreateIDS: !Equals
+    - !Ref CreateIDSCondition
+    - "Yes"
+  CreateIDSEIP: !And
+    - !Equals [ !Ref CreateEIPCondition, "Yes" ]
+    - !Equals [ !Ref CreateIDSCondition, "Yes" ]
+
+Resources:
+# Appliance/Security VPC:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-sec-vpc"
+
+# IGW associated with Appliance VPC:
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-igw-1"
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+# Subnets:
+  MgmtPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: !Ref MgmtPublicSubnet1Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "false"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-mgmt-sub-1"
+  ToolSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: !Ref ToolSubnet1Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "false"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-tool-sub-1"
+
+# Private Route Tables:
+  ToolRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-tool-rtb-1"
+  ToolSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ToolSubnet1
+      RouteTableId: !Ref ToolRouteTable
+# Public Route Tables:
+  DecryptorMgmtPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-mgmt-rtb-1"
+  DecryptorMgmtPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref DecryptorMgmtPublicRouteTable
+  MgmtPublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MgmtPublicSubnet1
+      RouteTableId: !Ref DecryptorMgmtPublicRouteTable
+
+# Security Group:
+  ApplianceSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Vpc
+      GroupName: !Sub "${AWS::StackName}-app-sg-mgmt"
+      GroupDescription: >-
+        Access to Appliance instance: allow SSH, HTTPS and ICMP access from desired CIDR.
+        Allow all traffic from VPC CIDR
+      SecurityGroupIngress:
+        - CidrIp: !Ref AccessLocation
+          IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+        - CidrIp: !Ref AccessLocation
+          IpProtocol: ICMP
+          FromPort: -1
+          ToPort: -1
+        - CidrIp: !Ref AccessLocation
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+        - CidrIp: !Ref AccessLocation
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+        - CidrIp: !Ref VpcCidr
+          IpProtocol: "-1"
+          FromPort: -1
+          ToPort: -1
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: "-1"
+          FromPort: -1
+          ToPort: -1
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-app-sg-mgmt"
+
+  ApplianceSgPlaintext:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Vpc
+      GroupName: !Sub "${AWS::StackName}-dpath-sg-1"
+      GroupDescription: >-
+        Access to Appliance instance: allow access from Tool CIDR.
+        Allow all traffic from Tool CIDR
+      SecurityGroupIngress:
+        - CidrIp: !Ref ToolSubnet1Cidr
+          IpProtocol: "-1"
+          FromPort: -1
+          ToPort: -1
+      SecurityGroupEgress:
+        - CidrIp: !Ref ToolSubnet1Cidr
+          IpProtocol: "-1"
+          FromPort: -1
+          ToPort: -1
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-dpath-sg-1"
+
+# Gateway Load Balancer (GWLB), Target Group, Listener
+  Gwlb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${AWS::StackName}-gwlb-1"
+      Type: gateway
+      Subnets:
+        - !Ref ToolSubnet1
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-gwlb-1"
+
+  # Target Group:
+  DecryptorTargetGroup:
+    DependsOn: Decryptor1Eth1
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${AWS::StackName}-tg-1"
+      Port: 6081
+      Protocol: GENEVE
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: 20
+      VpcId: !Ref Vpc
+      HealthCheckPort: 80
+      HealthCheckProtocol: "TCP"
+      TargetType: instance
+      Targets:
+        - Id: !Ref Decryptor1
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-tg-1"
+
+  # Listener:
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref DecryptorTargetGroup
+      LoadBalancerArn: !Ref Gwlb
+
+  #  EC2 Instances (Appliances acting as target for GWLB):
+  Decryptor1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref DecryptorAmiId
+      KeyName: !Ref KeyPairName
+      InstanceType: !Ref DecryptorInstanceType
+      EbsOptimized: True
+      SecurityGroupIds:
+        - !Ref ApplianceSgPlaintext
+      SubnetId: !Ref ToolSubnet1
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 120
+            VolumeType: 'gp3'
+            Encrypted: True
+            KmsKeyId: !Ref EbsKmsKey
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-decrypt-1"
+  Decryptor1Eth1:
+      Type: 'AWS::EC2::NetworkInterface'
+      Properties:
+        SubnetId: !Ref MgmtPublicSubnet1
+        Description: ManagementInterface
+        GroupSet:
+        - !Ref ApplianceSg
+        Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-DECeth1"
+  Decryptor1Eth1Attach:
+      Type: 'AWS::EC2::NetworkInterfaceAttachment'
+      Properties:
+        DeleteOnTermination: true
+        DeviceIndex: 1
+        NetworkInterfaceId: !Ref Decryptor1Eth1
+        InstanceId: !Ref Decryptor1
+  Decryptor1EIP:
+    Condition: CreateEIP
+    Type: AWS::EC2::EIP
+    DependsOn: Decryptor1
+    Properties:
+      Domain: Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-decrypt-EIP"
+  Decryptor1EIPAssoc:
+    Condition: CreateEIP
+    Type: AWS::EC2::EIPAssociation
+    DependsOn:
+    - Decryptor1EIP
+    - Decryptor1Eth1
+    Properties:
+      AllocationId: !GetAtt Decryptor1EIP.AllocationId
+      NetworkInterfaceId: !Ref Decryptor1Eth1
+
+  IDSEIP:
+    Condition: CreateIDSEIP
+    Type: AWS::EC2::EIP
+    DependsOn: IDS
+    Properties:
+      Domain: Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-IDS-1-EIP"
+  IDSEIPAssoc:
+    Condition: CreateIDSEIP
+    Type: AWS::EC2::EIPAssociation
+    DependsOn:
+    - IDSEIP
+    - IDSEth0
+    Properties:
+      AllocationId: !GetAtt IDSEIP.AllocationId
+      NetworkInterfaceId: !Ref IDSEth0
+  IDS:
+    Condition: CreateIDS
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref IDSAmiId
+      KeyName: !Ref KeyPairName
+      InstanceType: !Ref IDSInstanceType
+      EbsOptimized: True
+      NetworkInterfaces:
+      - NetworkInterfaceId: !Ref IDSEth0
+        DeviceIndex: '0'
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: !Ref IDSDiskSize
+            VolumeType: 'gp3'
+            Encrypted: True
+            KmsKeyId: !Ref EbsKmsKey
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-IDS"
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash -ex
+  IDSEth0:
+      Condition: CreateIDS
+      Type: 'AWS::EC2::NetworkInterface'
+      Properties:
+        SubnetId: !Ref MgmtPublicSubnet1
+        Description: IDSMgmtlInterface
+        GroupSet:
+        - !Ref ApplianceSg
+        Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-IDSeth0"
+  IDSEth1:
+      Condition: CreateIDS
+      Type: 'AWS::EC2::NetworkInterface'
+      Properties:
+        SubnetId: !Ref ToolSubnet1
+        Description: IDSTunnelInterface
+        GroupSet:
+        - !Ref ApplianceSgPlaintext
+        Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-IDSeth1"
+  IDSEth1Attach:
+      Condition: CreateIDS
+      Type: 'AWS::EC2::NetworkInterfaceAttachment'
+      Properties:
+        DeleteOnTermination: true
+        DeviceIndex: 1
+        NetworkInterfaceId: !Ref IDSEth1
+        InstanceId: !Ref IDS
+
+
+# VPC Endpoint Service using GWLB ARN:
+  VpcEndpointService:
+    Type: AWS::EC2::VPCEndpointService
+    Properties:
+      GatewayLoadBalancerArns:
+        - !Ref Gwlb
+      AcceptanceRequired: !Ref ConnectionAcceptance
+
+  VpcEndpointServicePermissions:
+    Type: AWS::EC2::VPCEndpointServicePermissions
+    Properties:
+      AllowedPrincipals:
+        - !Ref AwsAccountToWhitelist
+      ServiceId: !Ref VpcEndpointService
+
+  # Lambda Role and Policy and Log Group for describing VPC endpoint service:
+  VPCeLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-vpce-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeVpcEndpointServiceConfigurations
+                  - ec2:DescribeVpcEndpointServicePermissions
+                  - ec2:DescribeVpcEndpointServices
+                Resource: "*"
+
+  # Custom resource to retrieve VPC endpoint service name:
+  DescribeVpceService:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: "index.handler"
+      Role: !GetAtt
+        - VPCeLambdaExecutionRole
+        - Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import json
+          import logging
+          def handler(event, context):
+              logger = logging.getLogger()
+              logger.setLevel(logging.INFO)
+              responseData = {}
+              responseStatus = cfnresponse.FAILED
+              logger.info('Received event: {}'.format(json.dumps(event)))
+              if event["RequestType"] == "Delete":
+                  responseStatus = cfnresponse.SUCCESS
+                  cfnresponse.send(event, context, responseStatus, responseData)
+              if event["RequestType"] == "Create":
+                  try:
+                      VpceServiceId = event["ResourceProperties"]["Input"]
+                  except Exception as e:
+                      logger.info('VPC Endpoint Service Id retrival failure: {}'.format(e))
+                  try:
+                      ec2 = boto3.client('ec2')
+                  except Exception as e:
+                      logger.info('boto3.client failure: {}'.format(e))
+                  try:
+                      response = ec2.describe_vpc_endpoint_service_configurations(
+                          Filters=[
+                              {
+                                  'Name': 'service-id',
+                                  'Values': [VpceServiceId]
+                              }
+                          ]
+                      )
+                  except Exception as e:
+                      logger.info('ec2.describe_vpc_endpoint_service_configurations failure: {}'.format(e))
+                  ServiceName = response['ServiceConfigurations'][0]['ServiceName']
+                  responseData['Data'] = ServiceName
+                  responseStatus = cfnresponse.SUCCESS
+                  cfnresponse.send(event, context, responseStatus, responseData)
+      Runtime: python3.10
+      Timeout: 30
+
+  VpceServiceName:
+    Type: Custom::DescribeVpcEndpointServiceConfigurations
+    Properties:
+      ServiceToken: !GetAtt DescribeVpceService.Arn
+      Input: !Ref VpcEndpointService
+
+# Outputs
+Outputs:
+  ApplianceVpcCidr:
+    Description: Appliance VPC CIDR
+    Value: !Ref VpcCidr
+  ApplianceVpcId:
+    Description: Appliance VPC ID
+    Value: !Ref Vpc
+  ApplianceVpcEndpointServiceName:
+    Description: Appliance VPC Endpoint Service Name. Required to create GWLB Endpoint
+    Value: !GetAtt VpceServiceName.Data
+
