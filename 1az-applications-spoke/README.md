@@ -43,7 +43,13 @@ An additional ETO policy rule is required to prevent both inbound and outbound p
 
 The proxy is available at [endpoint2-proxy-elastic-IP]:3128. An internet browser running on an external computer can connect to this HTTPS proxy with the username and password previously set. All websites accessed on the browser will go via this proxy.
 
+![Figure 3: Firefox Proxy Setup](../images/spoke-endpoints_arch_firefox_setup.png)
+_Figure 3: Firefox Proxy Setup_
+
 The Resign action may be validated by viewing the certificate information on the web browser and inspecting the certificate's issuer name which should have the same as the CA within the ETO PKI store. Also the ETO session logs should have 2 logs per web flow, the first inbound to the proxy port should be bypassed whilst the flow re-emerging outbound should be resigned. The attached IDS also should log the decrypted HTTP payloads and if any security alerts are triggered.
+
+![Figure 4: Firefox Proxy Certificate Authority Resign](../images/spoke-endpoints_firefox_resignCA.png)
+_Figure 4: Firefox Proxy Certificate Authority Resign_
 
 ## **Cleanup**
 
