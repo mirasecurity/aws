@@ -89,7 +89,7 @@ Parameters:
     Description: Availability Zone to use for the Subnet 1 in the VPC
     Type: AWS::EC2::AvailabilityZone::Name
     ConstraintDescription: Valid Availability Zone Id
-    Default: 'us-east-1a'
+    Default: ''
   ToolSubnet1Cidr:
     AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
     Default: 192.168.1.0/25

@@ -29,11 +29,21 @@ Traffic going to and from the Spoke Servers will now go via the GWLB and ETO app
 
 ## Testing the Environment with Traffic
 ### **Nginx Test**
-The Nginx web service can be accessed by clicking open address on the Nginx EC2 details within the AWS console. The ETO will decrypt the traffic by replacing the self-signed Nginx certificate.
+The Nginx web service can be accessed by clicking open address on the Nginx EC2 details within the AWS console. The ETO will decrypt the inbound traffic from your browser by replacing the self-signed Nginx certificate.
 
 All flows going to the Nginx server should be logged within the ETO session log once the ETO has an activated segment.
 
 If the Nginx web server is given a publicly signed web certificate, this may be imported into the ETO to allow for it to be re-used as a known server key. Please consult the ETO documentation for more information.
+
+Outbound connections from the Nginx EC2 to internet websites will also be decrypted using a resign action with the ETO Certificate Authority. This CA may be trusted by the Nginx Ubuntu EC2 using the following steps
+
+> 1. Navigate to the ETO WebUI PKI page, select the Internal CA and click Export and copy the certificate text
+> 2. Write the file onto the EC2 server trust store directory \
+>    sudo nano /usr/local/share/ca-certificates/myinternalca.crt
+> 3. Update the OS trust store \
+>    sudo update-ca-certificates
+
+Curl and wget commands should now work on the EC2 without any untrusted certificate errors
 
 ### **Squid Proxy Test**
 

@@ -10,7 +10,7 @@ This example is intended for initial proof of concept test beds. The ETO and too
 
 _Figure 1: GWLB with Mira ETO and Trellix Network Security Architecture_
 
-The AWS Gateway Load Balancer routes the Spoke VPC traffic over to the Security VPC for traffic inspection. Mira ETO automatically detects SSL, TLS and SSH traffic and can decrypt this traffic in order to send the unencrypted data to one or more security tools. The decrypted flows may be sent to a passive security tool using GENEVE or VXLAN tunnels. Decrypted data is sent to security tools with the same packet header details as the original encrypted flow encapsulated within the tunnel. Both outbound and inbound TLS flows can be decrypted using Certificate Authority resign or using existing server certificates and keys.
+The AWS Gateway Load Balancer routes the Spoke VPC traffic over to the Security VPC for traffic inspection. Mira ETO automatically detects SSL, TLS and SSH traffic on any port and can decrypt this traffic in order to send the unencrypted data to one or more security tools. The decrypted flows may be sent to a passive security tool using GENEVE or VXLAN tunnels. Decrypted data is sent to security tools with the same packet header details as the original encrypted flow encapsulated within the tunnel. Both outbound and inbound TLS flows can be decrypted using Certificate Authority resign or using existing server certificates and keys.
 
 ![Figure 2: GWLB Mira ETO Dashboard](../images/ETO-dashboard.png)
 _Figure 2: Mira ETO Dashboard showing decryption policy actions_
@@ -31,10 +31,10 @@ A Trellix NX AMI may also be obtained from the [Trellix AWS marketplace](https:/
 
 * **The steps to install the VPC-Security stack are as follows:**
     1. Navigate to AWS CloudFormation and create a new stack and upload the VPC-Security-Trellix-NX.yaml file
-    2. Give the VPC a unique Stack Name
+    2. Give the VPC a unique Stack Name and select a availability zone
     3. Under Security Groups and Keys, assign the EC2s a SSH KeyPair
     4. Under Security Groups and Keys, set the network CIDR subnet that can access the appliances management interfaces, the default 0.0.0.0/0 will create a security group rule to allow access from any client. To only allow SSH/Webui access from a single IP this may be set here, e.g. 21.22.11.55/32
-    5. Under Decryptor Appliance Configuration, the ETO AMI ID should be entered, this is unique per AWS region and ETO model type
+    5. Under Decryptor Appliance Configuration, the ETO AMI ID should be entered, this is unique per AWS region and ETO license type
     6. The Decryptor instance type may be lowered to a lower cost type. If the AMI is obtained from the marketplace, ensure the chosen value matches a valid EC2 instance type as shown on the marketplace listing. The [Virtual ETO Product Brief](https://mirasecurity.com/resources/) also details the CPU and memory requirements for each licensed capacity
     7. Under IDS Tool settings, the Trellix NX AMI ID should be entered. Insert your Trellix Activation Code so that the VM can activate the NX software on startup. An admin password is also required to be set, this can later be changed to a more secure password during the setup process
 
@@ -46,6 +46,9 @@ The IAM role is required to run a lambda script to provide the ApplianceVPCEndpo
 The CloudFormations yaml file will now create a new Security VPC, GWLB and EC2 instances. The stack progress may be monitored by clicking the refresh button. The stack should move to a CREATE_COMPLETE stage.
 
 Navigate to the CloudFormation stack outputs tab and note the ApplianceVPCEndpointServiceName, this is the unique ID for the GWLB Endpoint Service and will be needed when connecting a Spoke’s Gateway Load Balancer Endpoint into this Security Stack.
+
+![Figure 3: Cloudformation Output Tab](../images/cloudformation-output.png)
+_Figure 3: CloudFormation output tab_
 
 ### Checking security appliance health
 
@@ -65,11 +68,11 @@ A video showing how to set up a minimum decryption policy is also shown below.
 
 For this AWS deployment, the ETO Segment "Plaintext Port Tunnel Type" field also should be set to VXLAN and the remote_ip set to the Trellix NX pether3 IP address. The Tunnel Virtual Network Identifier (VNI) key can be left at 0.
 
-![Figure 3: IDS EC2 networking tab](../images/ids-networking-trellix.png)
-_Figure 3: IDS EC2 networking tab_
+![Figure 4: IDS EC2 networking tab](../images/ids-networking-trellix.png)
+_Figure 4: IDS EC2 networking tab_
 
-![Figure 4: ETO Segment plaintext tunnel settings](../images/ETO-vxlan-trellix.png)
-_Figure 4: Mira ETO Segment plaintext tunnel settings_
+![Figure 5: ETO Segment plaintext tunnel settings](../images/ETO-vxlan-trellix.png)
+_Figure 5: Mira ETO Segment plaintext tunnel settings_
 
 Once the segment is reactivated the Trellix NX tool should get a copy of the decrypted traffic. The flows to the Spoke servers will be logged in the ETO session log.
 
@@ -90,7 +93,7 @@ Note: [pether3-ip] can be obtained from the AWS EC2 console and /27 is the defau
 The Trellix NX security tool can now be set up using the WebUI available on its management IP address. Consult the Trellix NX User Guide for more information.
  It is recommended to upgrade to Trellix NX v10 or newer to get HTTP/2 support however older versions can still be supported by enabling **Downgrade HTTP/2 to HTTP/1** within the ETO policy.
 
-### **Client VPC set up**
+### **Endpoint Spoke VPC set up**
 
 The Spoke VPCs should now be set up to route the traffic via the GWLB using subnet routing.
 
