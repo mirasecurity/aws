@@ -1,0 +1,845 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - AvailabilityZone1
+          - AvailabilityZone2
+          - AvailabilityZone3
+          - VpcCidr
+      - Label:
+          default: Gateway Load Balancer Endpoint Configuration
+        Parameters:
+          - GwlbeSubnet1Cidr
+          - GwlbeSubnet2Cidr
+          - GwlbeSubnet3Cidr
+          - ServiceName
+      - Label:
+          default: Security Groups and Keys for Endpoint Servers
+        Parameters:
+          - KeyPairName
+          - AccessLocation
+      - Label:
+          default: Common Endpoint Servers Configuration
+        Parameters:
+          - ApplicationInstanceType
+          - ApplicationAmiId
+          - ApplicationInstanceDiskSize
+      - Label:
+          default: Application EC2 Configuration
+        Parameters:
+          - ApplicationSubnet1Cidr
+          - ApplicationSubnet2Cidr
+          - ApplicationSubnet3Cidr
+      - Label:
+          default: ALB Configuration
+        Parameters:
+          - CertificateArn
+          - ALBSubnet1Cidr
+          - ALBSubnet2Cidr
+          - ALBSubnet3Cidr
+
+    ParameterLabels:
+      VpcCidr:
+        default: Network CIDR block for new VPC
+      AvailabilityZone1:
+        default: Public Availability Zone 1
+      AvailabilityZone2:
+        default: Public Availability Zone 2
+      ApplicationSubnet1Cidr:
+        default: Network CIDR for Application 1 Subnet
+      ApplicationSubnet2Cidr:
+        default: Network CIDR for Application 2 Subnet
+      GwlbeSubnet1Cidr:
+        default: Network CIDR for GWLBE Subnet 1
+      GwlbeSubnet2Cidr:
+        default: Network CIDR for GWLBE Subnet 2
+      GwlbeSubnet3Cidr:
+        default: Network CIDR for GWLBE Subnet 3
+      ALBSubnet1Cidr:
+        default: Network CIDR for ALB Subnet 1
+      ALBSubnet2Cidr:
+        default: Network CIDR for ALB Subnet 2
+      ALBSubnet3Cidr:
+        default: Network CIDR for ALB Subnet 3
+      CertificateArn:
+        default: Certificate Arn for ALB
+      ApplicationInstanceType:
+        default: Application Instance Type
+      ApplicationAmiId:
+        default: Latest AMI ID for application (ec2 instance)
+      ApplicationInstanceDiskSize:
+        default: Application Instance Size in GB
+      KeyPairName:
+        default: KeyPair required for accessing Application instance
+      AccessLocation:
+        default: Network CIDR to access Application instance
+      ServiceName:
+        default: The name of the endpoint service to create gateway load balancer endpoint for
+
+Parameters:
+  VpcCidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.0.0/16
+    Description: CIDR block for the VPC
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/25
+  AvailabilityZone1:
+    Description: Availability Zone to use for the Public Subnet 1 in the VPC
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Valid Availability Zone Id
+    Default: ''
+  AvailabilityZone2:
+    Description: Availability Zone to use for the Public Subnet 2 in the VPC
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Valid Availability Zone Id
+    Default: ''
+  AvailabilityZone3:
+    Description: Availability Zone to use for the Public Subnet 3 in the VPC
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Valid Availability Zone Id
+    Default: ''
+  GwlbeSubnet1Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.1.0/24
+    Description: CIDR block for the GWLBE Subnet 1 located in Availability Zone 1
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  GwlbeSubnet2Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.2.0/24
+    Description: CIDR block for the GWLBE Subnet 2 located in Availability Zone 2
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  GwlbeSubnet3Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.3.0/24
+    Description: CIDR block for the GWLBE Subnet 3 located in Availability Zone 3
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  ALBSubnet1Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.11.0/24
+    Description: CIDR block for the ALB Subnet 1 located in Availability Zone 1
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  ALBSubnet2Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.12.0/24
+    Description: CIDR block for the ALB Subnet 2 located in Availability Zone 2
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  ALBSubnet3Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.13.0/24
+    Description: CIDR block for the ALB Subnet 3 located in Availability Zone 3
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  ApplicationSubnet1Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.101.0/24
+    Description: CIDR block for the Application Subnet 1 located in Availability Zone 1
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  ApplicationSubnet2Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.102.0/24
+    Description: CIDR block for the Application Subnet 2 located in Availability Zone 2
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  ApplicationSubnet3Cidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    Default: 10.0.103.0/24
+    Description: CIDR block for the Application Subnet 3 located in Availability Zone 3
+    Type: String
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  CertificateArn:
+    Description: ACM Cert ARN
+    Type: String
+  ApplicationInstanceType:
+    Description: Select EC2 instance type for Endpoint instance.
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - c6i.large
+      - c6i.xlarge
+      - m6i.xlarge
+      - c6in.2xlarge
+    Type: String
+  ApplicationAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: '/aws/service/canonical/ubuntu/server/jammy/stable/current/amd64/hvm/ebs-gp2/ami-id'
+  ApplicationInstanceDiskSize:
+    Description: Application instance disk size in GB. Default is set to 20GB
+    Default: 20
+    Type: Number
+    ConstraintDescription: Should be a valid instance size in GB
+  KeyPairName:
+    Description: EC2 KeyPair required for accessing EC2 instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+  AccessLocation:
+    Description: >-
+      Enter desired Network CIDR to access Host. Default is set to
+      access from anywhere (0.0.0.0/0) and it is not recommended
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    MinLength: "9"
+    MaxLength: "18"
+    Default: 0.0.0.0/0
+    Type: String
+    ConstraintDescription: Must be a valid Network CIDR of the form x.x.x.x/y
+  ServiceName:
+    Description: >-
+      Enter the name of the service for which you want to create gateway load balancer endpoint.
+      Example service name: com.amazonaws.vpce.us-west-2.vpce-svc-0a76331bc5d6cc4cd
+    Type: String
+    ConstraintDescription: Must be a valid service name
+
+Resources:
+# Endpoint VPC:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EndPoints-VPC"
+
+# IGW associated with Endpoints VPC:
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-igw-1"
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+# GWLB Subnet 1:
+  GwlbeSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: !Ref GwlbeSubnet1Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-gwlbe-subnet-1"
+
+# GWLB Subnet 2:
+  GwlbeSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone2
+      CidrBlock: !Ref GwlbeSubnet2Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-gwlbe-subnet-2"
+
+# GWLB Subnet 3:
+  GwlbeSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone3
+      CidrBlock: !Ref GwlbeSubnet3Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-gwlbe-subnet-3"
+
+# ALB Subnet 1:
+  ALBSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: !Ref ALBSubnet1Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-alb-subnet-1"
+
+# ALB Subnet 2:
+  ALBSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone2
+      CidrBlock: !Ref ALBSubnet2Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-alb-subnet-2"
+
+# GWLB Subnet 3:
+  ALBSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone3
+      CidrBlock: !Ref ALBSubnet3Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-alb-subnet-3"
+
+  ApplicationSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: !Ref ApplicationSubnet1Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-Endpoints-subnet-1"
+
+  ApplicationSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone2
+      CidrBlock: !Ref ApplicationSubnet2Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-Endpoints-subnet-2"
+
+  ApplicationSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone3
+      CidrBlock: !Ref ApplicationSubnet3Cidr
+      VpcId: !Ref Vpc
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-Endpoints-subnet-3"
+
+  ApplicationRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-endpoint-rtb-1"
+
+  ApplicationSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ApplicationSubnet1
+      RouteTableId: !Ref ApplicationRouteTable1
+
+  ApplicationRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-endpoint-rtb-2"
+
+  ApplicationSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ApplicationSubnet2
+      RouteTableId: !Ref ApplicationRouteTable2
+
+  ApplicationRouteTable3:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-endpoint-rtb-3"
+
+  ApplicationSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ApplicationSubnet3
+      RouteTableId: !Ref ApplicationRouteTable3
+
+  GwlbeRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-gwlbe-rtb-1"
+
+  GwlbeRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref GwlbeRouteTable
+
+  GwlbeSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref GwlbeSubnet1
+      RouteTableId: !Ref GwlbeRouteTable
+
+  GwlbeSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref GwlbeSubnet2
+      RouteTableId: !Ref GwlbeRouteTable
+
+  GwlbeSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref GwlbeSubnet3
+      RouteTableId: !Ref GwlbeRouteTable
+
+  IgwRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ""
+            - - !Ref AWS::StackName
+              - "-igw-rtb1"
+
+  IgwRouteTableAssociation:
+    Type: AWS::EC2::GatewayRouteTableAssociation
+    Properties:
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref IgwRouteTable1
+
+  ALBRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ""
+            - - !Ref AWS::StackName
+              - "-alb-rtb1"
+
+  ALBRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ALBSubnet1
+      RouteTableId: !Ref ALBRouteTable1
+
+  ALBRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ALBSubnet2
+      RouteTableId: !Ref ALBRouteTable1
+
+  ALBRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ALBSubnet3
+      RouteTableId: !Ref ALBRouteTable1
+
+# Security Group:
+  ApplicationSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Vpc
+      GroupName: !Sub "${AWS::StackName}-application-sg-1"
+      GroupDescription: >-
+        Access to application instance: allow TCP, UDP and ICMP from appropriate location.
+        Allow all traffic from VPC CIDR.
+      SecurityGroupIngress:
+        - CidrIp: !Ref AccessLocation
+          IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+        - CidrIp: !Ref AccessLocation
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+        - CidrIp: !Ref AccessLocation
+          IpProtocol: ICMP
+          FromPort: -1
+          ToPort: -1
+        - CidrIp: !Ref VpcCidr
+          IpProtocol: "-1"
+          FromPort: -1
+          ToPort: -1
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: "-1"
+          FromPort: -1
+          ToPort: -1
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-application-sg-1"
+
+  AppALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Name: !Sub "${AWS::StackName}-app-alb"
+      Scheme: internet-facing
+      Subnets:
+        - !Ref ALBSubnet1
+        - !Ref ALBSubnet2
+        - !Ref ALBSubnet3
+      SecurityGroups:
+        - !Ref ApplicationSg
+  ALBHttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      DefaultActions:
+        - Order: 1
+          Type: forward
+          TargetGroupArn: !Ref ALBTG
+      LoadBalancerArn: !Ref AppALB
+      Port: 443
+      Protocol: HTTPS
+  ALBTG:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${AWS::StackName}-alb-tg1"
+      HealthCheckIntervalSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Port: 443
+      Protocol: HTTPS
+      HealthCheckPath: /
+      VpcId: !Ref Vpc
+      TargetType: instance
+
+# EC2 Instances
+  Application1LaunchTemplate:
+    DependsOn:
+    - ApplicationRouteTable1Route3
+    - ApplicationRouteTable2Route3
+    - ApplicationRouteTable3Route3
+    - AddApplication1IgwRouteTable
+    Type: 'AWS::EC2::LaunchTemplate'
+    Properties:
+      LaunchTemplateName: !Sub '${AWS::StackName}-App-Template'
+      LaunchTemplateData:
+          ImageId: !Ref ApplicationAmiId
+          KeyName: !Ref KeyPairName
+          InstanceType: !Ref ApplicationInstanceType
+          BlockDeviceMappings:
+            - DeviceName: /dev/sda1
+              Ebs:
+                VolumeSize: !Ref ApplicationInstanceDiskSize
+          NetworkInterfaces:
+            - DeviceIndex: 0
+              DeleteOnTermination: true
+              SubnetId: !Ref ApplicationSubnet1
+              Groups:
+                - !Ref ApplicationSg
+          UserData:
+            Fn::Base64: !Sub |
+              #!/bin/bash -ex
+              sudo apt update
+              sudo apt -y install nginx jq
+              mkdir /etc/pki
+              mkdir /etc/pki/nginx
+              mkdir /etc/pki/nginx/private
+              openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/pki/nginx/private/server.key -out /etc/pki/nginx/server.crt -subj '/CN=localhost'
+              echo "    server {
+                  listen       443 ssl;
+                  listen       [::]:443 ssl;
+                  server_name  _;
+                  root         /var/www/html;
+
+                  ssl_certificate "/etc/pki/nginx/server.crt";
+                  ssl_certificate_key "/etc/pki/nginx/private/server.key";
+                  ssl_session_cache shared:SSL:1m;
+                  ssl_session_timeout  10m;
+                  ssl_ciphers HIGH;
+                  ssl_prefer_server_ciphers on;
+                  }" > /etc/nginx/sites-enabled/default
+              hostname > /var/www/html/index.html
+              cat /run/cloud-init/instance-data.json | jq '.v1.availability_zone' >> /var/www/html/index.html
+              systemctl restart nginx
+              ######### OPTIONAL INSTALL MIRA INTERCEPT CA UNCOMMENT FOLLOWING AND INSERT YOUR CA BELOW
+              #echo "-----BEGIN CERTIFICATE-----
+              # INSERT PEM DATA HERE
+              #-----END CERTIFICATE-----" > /ca.crt
+              #cp /ca.crt /usr/local/share/ca-certificates/;
+              #update-ca-certificates
+  ClientsASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize: '0'
+      MinSize: '0'
+      DesiredCapacity: '0'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Application1LaunchTemplate
+        Version: !GetAtt Application1LaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref ApplicationSubnet1
+        - !Ref ApplicationSubnet2
+        - !Ref ApplicationSubnet3
+      TargetGroupARNs:
+      - !Ref ALBTG
+      MetricsCollection:
+        - Granularity: 1Minute
+          Metrics:
+            - GroupMinSize
+            - GroupMaxSize
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-ASG-Clients'
+          PropagateAtLaunch: true
+
+# Gateway Load Balancer endpoints:
+  GwlbVpcEndpoint1:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Ref ServiceName
+      VpcEndpointType: GatewayLoadBalancer
+      SubnetIds:
+        - !Ref GwlbeSubnet1
+
+  GwlbVpcEndpoint2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Ref ServiceName
+      VpcEndpointType: GatewayLoadBalancer
+      SubnetIds:
+        - !Ref GwlbeSubnet2
+
+  GwlbVpcEndpoint3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Ref ServiceName
+      VpcEndpointType: GatewayLoadBalancer
+      SubnetIds:
+        - !Ref GwlbeSubnet3
+
+# Add routes to route tables:
+  # Application 1 Subnet
+  # North South to IGW
+  ApplicationRouteTable1Route1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      VpcEndpointId: !Ref GwlbVpcEndpoint1
+      RouteTableId: !Ref ApplicationRouteTable1
+  # East West 1-2
+  ApplicationRouteTable1Route2:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet2Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint1
+      RouteTableId: !Ref ApplicationRouteTable1
+
+  # East West 1-3
+  ApplicationRouteTable1Route3:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet3Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint3
+      RouteTableId: !Ref ApplicationRouteTable1
+
+  # North South via ALB
+  ApplicationRouteTable1Route4a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet1Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint1
+      RouteTableId: !Ref ApplicationRouteTable1
+  ApplicationRouteTable1Route5a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet2Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint1
+      RouteTableId: !Ref ApplicationRouteTable1
+  ApplicationRouteTable1Route6a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet3Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint1
+      RouteTableId: !Ref ApplicationRouteTable1
+
+  # Application 2 Subnet
+  # North South to IGW
+  ApplicationRouteTable2Route1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      VpcEndpointId: !Ref GwlbVpcEndpoint2
+      RouteTableId: !Ref ApplicationRouteTable2
+
+  # East West 1-2
+  ApplicationRouteTable2Route2:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet1Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint1
+      RouteTableId: !Ref ApplicationRouteTable2
+
+  # East West 2-3
+  ApplicationRouteTable2Route3:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet3Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint2
+      RouteTableId: !Ref ApplicationRouteTable2
+
+  # North South via ALB
+  ApplicationRouteTable2Route4a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet1Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint2
+      RouteTableId: !Ref ApplicationRouteTable2
+  ApplicationRouteTable2Route5a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet2Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint2
+      RouteTableId: !Ref ApplicationRouteTable2
+  ApplicationRouteTable2Route6a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet3Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint2
+      RouteTableId: !Ref ApplicationRouteTable2
+
+  # Application 3 Subnet
+  # North South to IGW
+  ApplicationRouteTable3Route1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      VpcEndpointId: !Ref GwlbVpcEndpoint3
+      RouteTableId: !Ref ApplicationRouteTable3
+
+  # East West 1-3
+  ApplicationRouteTable3Route2:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet1Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint3
+      RouteTableId: !Ref ApplicationRouteTable3
+
+  # East West 2-3
+  ApplicationRouteTable3Route3:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet2Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint2
+      RouteTableId: !Ref ApplicationRouteTable3
+
+  # North South via ALB
+  ApplicationRouteTable3Route4a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet1Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint3
+      RouteTableId: !Ref ApplicationRouteTable3
+  ApplicationRouteTable3Route5a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet2Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint3
+      RouteTableId: !Ref ApplicationRouteTable3
+  ApplicationRouteTable3Route6a:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref ALBSubnet3Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint3
+      RouteTableId: !Ref ApplicationRouteTable3
+
+  # Setup IGW Route Table
+  # GWLBE as target for ingress route table to application-rtb-1:
+  AddApplication1IgwRouteTable:
+    Type: AWS::EC2::Route
+    DependsOn: GwlbVpcEndpoint1
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet1Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint1
+      RouteTableId: !Ref IgwRouteTable1
+
+  # GWLBE as target for ingress route table to application-rtb-2:
+  AddApplication2IgwRouteTable:
+    Type: AWS::EC2::Route
+    DependsOn: GwlbVpcEndpoint1
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet2Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint2
+      RouteTableId: !Ref IgwRouteTable1
+
+  AddApplication3IgwRouteTable:
+    Type: AWS::EC2::Route
+    DependsOn: GwlbVpcEndpoint3
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet3Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint3
+      RouteTableId: !Ref IgwRouteTable1
+
+  # Setup ALB Route Table
+  # GWLBE as target for ingress route table from ALBs to EC2s
+  AddApplication1ALBRouteTable:
+    Type: AWS::EC2::Route
+    DependsOn: GwlbVpcEndpoint1
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet1Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint1
+      RouteTableId: !Ref ALBRouteTable1
+
+  AddApplication2ALBRouteTable:
+    Type: AWS::EC2::Route
+    DependsOn: GwlbVpcEndpoint2
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet2Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint2
+      RouteTableId: !Ref ALBRouteTable1
+
+  AddApplication3ALBRouteTable:
+    Type: AWS::EC2::Route
+    DependsOn: GwlbVpcEndpoint3
+    Properties:
+      DestinationCidrBlock: !Ref ApplicationSubnet3Cidr
+      VpcEndpointId: !Ref GwlbVpcEndpoint3
+      RouteTableId: !Ref ALBRouteTable1
+
+  # IGW as target for egress route table from ALBs
+  AddIGWALBRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref ALBRouteTable1
+
+# Outputs:
+Outputs:
+  EndpointsVpcCidr:
+    Description: Endpoints VPC CIDR
+    Value: !Ref VpcCidr
+  EndpointsVpcId:
+    Description: Endpoints VPC ID
+    Value: !Ref Vpc
+  EndpointsGwlbVpcEndpoint1Id:
+    Description: Gateway Load Balancer VPC Endpoint 1 ID
+    Value: !Ref GwlbVpcEndpoint1
+  LoadBalancerUrl:
+    Description: The URL of the ALB
+    Value: !GetAtt AppALB.DNSName
