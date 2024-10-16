@@ -16,6 +16,7 @@ This repository contains AWS samples to demonstrate how to create a Mira ETO on 
 | [eto-trellix-nx](1az-security-eto-trellix-nx) | Mira ETO with a GWLB and Trellix Network Security (NX) |
 | Autoscaling ETOs with Suricata Tool |
 | [autoscaling-api](3az-security-eto-asg-api-suricata) | Mira ETO autoscaled using IaC REST API and feeding Suricata Tools |
+| [autoscaling-cm](3az-security-eto-asg-cm-suricata) | Mira ETO autoscaled using Central Manager and feeding Suricata Tools |
 
 For ETO on AWS product information visit [Mira Website](https://mirasecurity.com/how-mira-works/eto-aws/)
 
