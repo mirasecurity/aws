@@ -724,6 +724,7 @@ Resources:
                   - autoscaling:Describe*
                   - ec2:Describe*
                 Resource: "*"
+
   CMInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -737,18 +738,11 @@ Resources:
     Condition: CreateCMEIP
     Properties:
       Domain: Vpc
+      InstanceId: !Ref CM1
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-CM-1-EIP"
-  CM1EIPAssoc:
-    Type: AWS::EC2::EIPAssociation
-    Condition: CreateCMEIP
-    DependsOn:
-    - CM1EIP
-    - CM1Eth0
-    Properties:
-      AllocationId: !GetAtt CM1EIP.AllocationId
-      NetworkInterfaceId: !Ref CM1Eth0
+
   CM1:
     Type: AWS::EC2::Instance
     Properties:
@@ -757,8 +751,12 @@ Resources:
       InstanceType: !Ref CMInstanceType
       EbsOptimized: True
       NetworkInterfaces:
-      - NetworkInterfaceId: !Ref CM1Eth0
-        DeviceIndex: '0'
+        - AssociatePublicIpAddress: "false"
+          DeviceIndex: '0'
+          SubnetId: !Ref MgmtPublicSubnet1
+          Description: CM1MgmtlInterface
+          GroupSet:
+          - !Ref MgmtSg
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
@@ -771,18 +769,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-CentralManager-1"
-  CM1Eth0:
-    Type: 'AWS::EC2::NetworkInterface'
-    Properties:
-      SubnetId: !Ref MgmtPublicSubnet1
-      Description: CM1MgmtlInterface
-      GroupSet:
-      - !Ref MgmtSg
-      Tags:
-      - Key: Name
-        Value: !Sub "${AWS::StackName}-CM1eth0"
-
-
 # VPC Endpoint Service using GWLB ARN:
   VpcEndpointService:
     Type: AWS::EC2::VPCEndpointService
